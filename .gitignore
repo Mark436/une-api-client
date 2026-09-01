@@ -5,6 +5,10 @@ node_modules/
 _samples/*
 !_samples/.gitkeep
 unesonora.har
+unesonora2.har
+
+# Imágenes/mapas generados en pruebas (e2e/image-test.ts)
+_generadas/
 
 # Build
 dist

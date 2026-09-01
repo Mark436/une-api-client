@@ -68,6 +68,7 @@ const rps = await client.puntosReferencia() // PuntoReferencia[]
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — estructura y arquitectura del paquete.
 - [`api.md`](./api.md) — estado del descubrimiento de la API real y glosario.
 - [`PLAN.md`](./PLAN.md) — **estado actual y pendientes** (leer primero).
+- [`PENDIENTES.md`](./PENDIENTES.md) — lista de pendientes accionable para la próxima sesión.
 
 ## 🧪 Pruebas
 

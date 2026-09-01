@@ -17,6 +17,7 @@ import { mapParada } from './mappers/parada.mapper.js'
 import { mapPuntoReferencia } from './mappers/puntoReferencia.mapper.js'
 import { UneAuthError, UneFirebaseError, UneHttpError, UneNetworkError } from './errors.js'
 import { httpsGetRaw, type HttpRequestOptions, type HttpResult } from './http.js'
+import { buscarRutasPorNombre as buscarRutasPorNombrePuro } from './rutas/buscarRutas.js'
 
 /**
  * Tipo del transporte de peticiones contra la API de UNE. Devuelve status,
@@ -361,6 +362,65 @@ export class UneApiClient {
     const data = await this.#get<ApiPuntoReferencia[]>('/rps', { id_city: id })
     return data.map(mapPuntoReferencia)
   }
+
+  /**
+   * Busca rutas de la ciudad configurada en la instancia por su nombre (puro o
+   * parcial, con o sin número de línea: "caturegli", "10 caturegli", "línea 10").
+   *
+   * Devuelve todas las coincidencias o una lista vacía si no hay ninguna.
+   * No resuelve por id.
+   */
+  async buscarRutasPorNombre(consulta: string): Promise<Ruta[]> {
+    const rutas = await this.listarRutas()
+    return buscarRutasPorNombrePuro(rutas, consulta)
+  }
+
+  /**
+   * Resuelve una ruta por su id dentro de la ciudad configurada en la instancia.
+   * Devuelve la ruta o `null` si no existe.
+   */
+  async buscarRutaPorId(idRuta: string): Promise<Ruta | null> {
+    const rutas = await this.listarRutas()
+    return rutas.find((r) => r.id === idRuta) ?? null
+  }
+
+  /**
+   * Devuelve la información completa de una ruta (recorrido, paradas y unidades
+   * en circulación). El identificador puede ser un nombre (o parte de él) o un
+   * id; se resuelve primero por nombre (exacto/único) y, si no, por id, todo
+   * dentro de la ciudad configurada en la instancia.
+   *
+   * Devuelve `null` si no se resuelve a una ruta única.
+   */
+  async consultarRuta(identificador: string): Promise<InformacionRuta | null> {
+    const rutas = await this.listarRutas()
+
+    let ruta: Ruta | undefined
+    if (/^\d+$/.test(identificador)) {
+      ruta = rutas.find((r) => r.id === identificador)
+    }
+    if (!ruta) {
+      const coincidencias = buscarRutasPorNombrePuro(rutas, identificador)
+      if (coincidencias.length === 1) ruta = coincidencias[0]
+    }
+    if (!ruta) return null
+
+    const [paradas, camiones] = await Promise.all([
+      this.paradas(ruta.id),
+      this.posiciones(ruta.groupId),
+    ])
+    return { ruta, paradas, camiones }
+  }
+}
+
+/** Información completa de una ruta: recorrido, paradas y unidades en vivo. */
+export interface InformacionRuta {
+  /** La ruta con su recorrido (polilínea decodificada) y metadatos. */
+  ruta: Ruta
+  /** Paradas de la ruta. */
+  paradas: Parada[]
+  /** Unidades (camiones) en circulación del grupo de la ruta. */
+  camiones: Camion[]
 }
 
 // ── Re-exports publicos ──────────────────────────────────────────────────
@@ -378,3 +438,7 @@ export type { Ciudad } from './dto/Ciudad.js'
 export type { Parada } from './dto/Parada.js'
 export type { PuntoReferencia } from './dto/PuntoReferencia.js'
 export type { Coordenada } from './dto/Coordenada.js'
+export { buscarRutasPorNombre, numeroLineaDeRuta } from './rutas/buscarRutas.js'
+export { normalizarTexto } from './rutas/normalizar.js'
+export { rutaASvg } from './render/svgRuta.js'
+export type { Dimensiones } from './render/svgRuta.js'

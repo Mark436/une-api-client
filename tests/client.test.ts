@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { UneApiClient, type UneHttpTransport } from '../src/index.js'
 import type { HttpRequestOptions, HttpResult } from '../src/http.js'
-import { apiCiudadesRespuesta, apiRutas, apiCamiones } from './helpers/mock.js'
+import { apiCiudadesRespuesta, apiRutas, apiCamiones, apiParadas } from './helpers/mock.js'
 
 const FIREBASE_KEY = 'test-key'
 const FAKE_ID_TOKEN = 'fake-id-token'
@@ -190,3 +190,69 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   })
 }
+
+test('buscarRutaPorId resuelve por id y devuelve null si no existe', async () => {
+  const cliente = clienteMock({
+    fetchHandler: (url) =>
+      url.includes('accounts:signUp') ? jsonResponse(SIGN_UP_RESPONSE) : jsonResponse({}),
+    httpHandler: ({ url }) =>
+      url.includes('/routes/city/1') ? jsonResult(apiRutas) : jsonResult({}),
+  })
+
+  const encontrada = await cliente.buscarRutaPorId('4')
+  assert.ok(encontrada)
+  assert.equal(encontrada.id, '4')
+  assert.equal(encontrada.nombre, 'LA-nea 1 Manga')
+
+  assert.equal(await cliente.buscarRutaPorId('999'), null)
+})
+
+test('buscarRutasPorNombre devuelve las rutas que coinciden por nombre', async () => {
+  const cliente = clienteMock({
+    fetchHandler: (url) =>
+      url.includes('accounts:signUp') ? jsonResponse(SIGN_UP_RESPONSE) : jsonResponse({}),
+    httpHandler: ({ url }) =>
+      url.includes('/routes/city/1') ? jsonResult(apiRutas) : jsonResult({}),
+  })
+
+  const coincidencias = await cliente.buscarRutasPorNombre('manga')
+  assert.equal(coincidencias.length, 1)
+  assert.equal(coincidencias[0].id, '4')
+
+  assert.deepEqual(await cliente.buscarRutasPorNombre('no existe'), [])
+})
+
+test('consultarRuta devuelve ruta + paradas + camiones de una ruta única', async () => {
+  const cliente = clienteMock({
+    fetchHandler: (url) =>
+      url.includes('accounts:signUp') ? jsonResponse(SIGN_UP_RESPONSE) : jsonResponse({}),
+    httpHandler: ({ url }) => {
+      if (url.includes('/routes/city/1')) return jsonResult(apiRutas)
+      if (url.includes('/stops?route=4')) return jsonResult(apiParadas)
+      if (url.includes('/locations/102')) return jsonResult(apiCamiones)
+      return jsonResult({})
+    },
+  })
+
+  const info = await cliente.consultarRuta('manga')
+
+  assert.ok(info)
+  assert.equal(info.ruta.id, '4')
+  assert.equal(info.ruta.groupId, '102')
+  assert.ok(info.paradas.length > 0)
+  assert.equal(info.paradas[0].nombre, 'Calle Garmendia y AV Dr. Alberto G Noriega')
+  assert.ok(info.camiones.length > 0)
+  assert.equal(info.camiones[0].id, 'H-218')
+})
+
+test('consultarRuta devuelve null si el nombre es ambiguo o no existe', async () => {
+  const cliente = clienteMock({
+    fetchHandler: (url) =>
+      url.includes('accounts:signUp') ? jsonResponse(SIGN_UP_RESPONSE) : jsonResponse({}),
+    httpHandler: ({ url }) =>
+      url.includes('/routes/city/1') ? jsonResult(apiRutas) : jsonResult({}),
+  })
+
+  // "nea" coincide con varias (LA-nea 1 Manga y ALimetadora... normalizado "nea").
+  assert.equal(await cliente.consultarRuta('no existe'), null)
+})

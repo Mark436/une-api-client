@@ -1,0 +1,54 @@
+{
+  "name": "une-api-client",
+  "version": "0.1.0",
+  "description": "Cliente TypeScript no oficial para la API de camiones de UNE (Unión de Usuarios de Hermosillo).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build && npm test && npm run lint && npm run format:check"
+  },
+  "keywords": [
+    "une",
+    "api",
+    "typescript",
+    "client",
+    "camiones",
+    "hermosillo"
+  ],
+  "author": "Mark436",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "oxlint": "^1.80.0",
+    "playwright": "1.54.2",
+    "prettier": "^3.9.6",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+# Dependencias
+node_modules/
+
+# Archivos locales y muestras capturadas de la API real
+_samples/*
+!_samples/.gitkeep
+unesonora.har
+
+# Build
+dist
+*.tsbuildinfo
+
+# Script de descubrimiento manual (usa Playwright; no se publica)
+src/discover.ts
+
+# Entorno
+.env
+.env.local
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+# Muestras locales capturadas de la API real
+_samples*.json
+_samples*.png
+
+# Build
+node_modules
+*.tsbuildinfo
+
+# Script de descubrimiento manual (no se publica)
+src/discover.ts
+
+# Editor / OS
+.vscode
+.idea
+*.swp
+.env
+.DS_Store
+Thumbs.db
+
+# Git / CI
+.git
+.gitignore
+.github
+.gitlab-ci.yml

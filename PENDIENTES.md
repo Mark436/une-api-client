@@ -13,15 +13,16 @@
     `normalizarTexto`).
   - Métodos en `UneApiClient`: `buscarRutasPorNombre`, `buscarRutaPorId`,
     `consultarRuta`.
-- **Render a imagen**:
-  - Función pura `rutaASvg` (`src/render/svgRuta.ts`) → SVG del recorrido +
-    paradas + camiones (rotados por `rumbo`).
-  - Conversión SVG→PNG con `sharp` (devDependency) vía `e2e/image-test.ts`.
+- **Render a imagen (migrado al bot)**:
+  - La función pura `rutaASvg` (`src/render/svgRuta.ts`) **se movió a
+    `whatsapp-une-bot`** (`svgMapa.js`) para separar responsabilidades: este
+    paquete solo entrega **datos**; el bot hace el mapa SVG→PNG.
+  - Se eliminó `src/render/` y `e2e/image-test.ts` (y `sharp` de devDeps).
 - El script de imagen resuelve la ruta **por nombre** ("caturegli" → Línea 10
   Caturegli, id 48, Hermosillo) y genera el mapa.
 - Se filtran las unidades **inactivas** (la API las marca con `disabled` /
   `deshabilitado`: p. ej. "Unidad fuera de ruta", "Unidad sin datos recientes"),
-  igual que el mapa oficial.
+  igual que el mapa oficial. **Este filtro también quedó en el render del bot.**
 - 27 tests offline en verde; build, lint y formato OK.
 - 2 commits en `main`.
 
@@ -30,6 +31,9 @@
 ## 🔴 Pendientes para mañana (prioridad)
 
 ### 1. Mejorar el estilo del mapa SVG generado
+
+> ⚠️ Este pendiente **vive ahora en `whatsapp-une-bot`** (`svgMapa.js`), porque el
+> render se movió fuera de este paquete. Acá queda solo como referencia:
 
 Es lo que dejamos abierto al final: el mapa cumple (recorrido + paradas + buses
 con rumbo) pero **visualmente se puede pulir mucho**:
@@ -58,15 +62,16 @@ Ver [`PLAN.md`](./PLAN.md) para el detalle. Resumen accionable:
       se validaron. Confirmar `metadata` de las rutas.
 - [ ] **Decidir frecuencias de polling** en el consumidor (el mapa en vivo se
       actualiza cada N segundos; falta decidir N y el caché).
-- [ ] **Conectar al bot `whatsapp-une-bot`**: recrear el mapa con este render
-      (SVG→PNG) en lugar del screenshot de DOM, y enviar la imagen por
-      WhatsApp. Enlazar el paquete como dependencia.
+- [ ] **Conectar al bot `whatsapp-une-bot`**: ✅ hecho en `new_map` — el bot
+      resuelve la ruta por la API, genera el mapa con su `svgMapa.js` (SVG→PNG)
+      y lo envía por WhatsApp en lugar del screenshot de DOM. Enlazado con
+      `file:../une-api-client` (pasar a versión publicada cuando se publique).
 - [ ] **Build y publicación**: revisar `files` en `package.json` (excluir
       `e2e/`, `_generadas/`, HAR), reproducir `dist/`, y publicar cuando la
       validación en vivo esté lista.
 - [ ] **Revisar `ARCHITECTURE.md` / `README.md`**: documentar los métodos
-      nuevos (`buscarRutasPorNombre`, `buscarRutaPorId`, `consultarRuta`,
-      `rutaASvg`) y la sección de imagen.
+      nuevos (`buscarRutasPorNombre`, `buscarRutaPorId`, `consultarRuta`) y
+      aclarar que el render vive en el consumidor.
 
 ### 3. Revisar/mejorar la funcionalidad de búsqueda y consulta
 
@@ -89,7 +94,7 @@ Ver [`PLAN.md`](./PLAN.md) para el detalle. Resumen accionable:
 
 ## 📌 Referencias rápidas
 
-- Ejecutar el script de imagen:
-  `pnpm exec tsx e2e/image-test.ts`
+- Generar el mapa (en el bot): `node scripts/probar-mapa.js` dentro de
+  `whatsapp-une-bot` (o directamente con el bot en `!ruta`).
 - Suite offline: `pnpm test`
 - Build/lint/formato: `pnpm run build` · `pnpm run lint` · `pnpm run format:check`

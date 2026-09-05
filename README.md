@@ -28,8 +28,9 @@ cambios en el servicio o cualquier consecuencia derivada del uso.
   el auth de Firebase) y un transporte HTTP propio tolerante a headers
   corruptos para la API de UNE.
 - **Sin Playwright en el paquete publicado**. Playwright se usa sólo en un
-  script de desarrollo (`src/discover.ts`) para descubrir los endpoints, y en
-  el bot para _recrear_ el mapa; no forma parte de la librería.
+  script de desarrollo (`src/discover.ts`) para descubrir los endpoints. El
+  render del mapa (SVG→PNG) **no vive aquí**: lo hace el consumidor (p. ej. el
+  bot `whatsapp-une-bot` con su módulo `svgMapa.js`).
 - ESM, TypeScript estricto, tests 100% offline.
 
 ## ⚡ Guía rápida de uso

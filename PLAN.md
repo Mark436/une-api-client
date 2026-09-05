@@ -83,12 +83,15 @@ El cliente ya implementa el flujo, pero **solo se ha probado offline** (con
 
 ## Pendiente #2 — Conectar al bot `whatsapp-une-bot`
 
-Una vez el cliente validado en vivo:
+Hecho en la branch `new_map`:
 
-- Recrear el **mapa localmente** (p. ej. Leaflet/MapLibre + OpenStreetMap ->
-  PNG) a partir de rutas (decodificando `polyline`) + posiciones y **enviar la
-  imagen** por WhatsApp, en lugar del scraping/screenshot del DOM actual.
-- Publicar/enlazar el paquete (hermano en `../`) como dependencia del bot.
+- El render del mapa (SVG→PNG) **se movió al bot**: `whatsapp-une-bot` tiene su
+  propio módulo `svgMapa.js` adaptado del antiguo `src/render/svgRuta.ts`, por
+  lo que este paquete quedó **solo con datos** (HTTP + parseo + mapeo).
+- El bot resuelve la ruta por nombre (`listarRutas` / `consultarRuta`), renderiza
+  el mapa con su propio SVG y envía la imagen por WhatsApp.
+- El paquete se enlaza con `file:../une-api-client` (de momento) y más adelante
+  por versión publicada en npm.
 
 ---
 

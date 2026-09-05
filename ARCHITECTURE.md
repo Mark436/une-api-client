@@ -34,7 +34,9 @@ _samples/                   Muestras de payload real capturadas (no versionadas)
 
 Principio (mismo espíritu que el patrón de cliente que se usa en otros
 consumidores): **el paquete dueño hace HTTP + parseo + mapeo; el consumidor
-decide cuándo consultar, cómo cachear y cómo presentar.**
+decide cuándo consultar, cómo cachear y cómo presentar.** La presentación —p.
+ej. el mapa SVG→PNG que genera `whatsapp-une-bot`— vive **en el consumidor**,
+no en este paquete (que solo entrega datos).
 
 ---
 

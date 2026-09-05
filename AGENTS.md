@@ -4,8 +4,8 @@ Documento de contexto para agentes/LLMs que trabajen sobre este repositorio.
 **Léelo antes de modificar el código.** Refleja el estado actual del paquete.
 
 > Documentación: [`README.md`](./README.md) (uso), [`PLAN.md`](./PLAN.md)
-> (**estado real y pendientes — leer primero**), [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-> (estructura), [`api.md`](./api.md) (descubrimiento de la API real).
+> (pendientes), [`ARCHITECTURE.md`](./ARCHITECTURE.md) (estructura),
+> [`api.md`](./api.md) (endpoints de la API real), [`FLUJO_API.md`](./FLUJO_API.md).
 
 ---
 
@@ -15,23 +15,23 @@ Documento de contexto para agentes/LLMs que trabajen sobre este repositorio.
 de UNE (Unión de Usuarios de Hermosillo), la que alimenta el mapa en vivo de
 `https://unesonora.com/`.
 
-- **ESM**, `strict`, sin dependencias de runtime (usa `fetch` global de Node
-  `>=24`).
+- **ESM**, `strict`, sin dependencias de runtime (usa `node:tls`/`node:url` y el
+  `fetch` global de Node `>=24`).
 - Dueño del HTTP, del parseo y del mapeo a DTOs. El consumidor decide cuándo,
   cómo cachear y cómo presentar.
-- **En fase de descubrimiento**: NO hay endpoints confirmados. Todo el DTO/
-  mapper/cliente es un bosquejo provisional marcado `⚠️ Fase de prueba`.
+- **La API real ya está descubierta** (HAR en `unesonora.har` y `unesonora2.har`,
+  resumen en [`api.md`](./api.md)). El código ya refleja los endpoints y el
+  payload reales. NO es un boceto: es la implementación funcional.
 
 ---
 
 ## Estado real (importante)
 
-- **Los DTOs, mappers y el cliente `UneApiClient` NO reflejan aún la API
-  real.** Son un boceto para tener la estructura lista.
-- El único paso que desbloquea el trabajo real es **descubrir los endpoints**
-  con el script `src/discover.ts` (ver `PLAN.md` #1).
-- El paquete todavía no tiene devDependencies instaladas (`npm install` no se
-  corrió) ni `dist/` construido.
+- **El descubrimiento de la API está completo.** Los DTOs, mappers y clientes
+  reflejan el payload real capturado en los HAR. `AGENTS.md` anterior decía que
+  era un "bosquejo provisional ⚠️ Fase de prueba" — eso quedó desactualizado.
+- Base de la API: `https://api.unesonora.com`. Auth: Firebase anónima.
+- DevDependencies instaladas; `dist/` construible con `pnpm run build`.
 
 ---
 
@@ -39,47 +39,108 @@ de UNE (Unión de Usuarios de Hermosillo), la que alimenta el mapa en vivo de
 
 ```
 src/
-  api/types.ts         Tipos CRUDOS con nombres tal como llegan del API
-  dto/                 DTOs PÚBLICOS legibles (Camion, Ruta)
-  mappers/             Funciones puras raw -> DTO (uno por DTO)
-  errors.ts            Jerarquía UneError
-  index.ts             UneApiClient (HTTP) + re-exports públicos
-  discover.ts          Script manual (Playwright) — excluido de build y npm
-tests/                 Suite unitaria offline (node:test vía tsx)
-_samples/              Muestras reales (no versionado)
+  api/types.ts              Tipos CRUDOS con los nombres tal como llegan del API
+  dto/                      DTOs PÚBLICOS legibles
+    Coordenada.ts { lat, lng }
+    Camion.ts / Ruta.ts / Ciudad.ts / Parada.ts / PuntoReferencia.ts
+  mappers/                  Funciones puras raw -> DTO
+    decodePolyline.ts       Decodifica Google Encoded Polyline (recorrido)
+    camion.mapper.ts / ruta.mapper.ts / ciudad.mapper.ts
+    parada.mapper.ts / puntoReferencia.mapper.ts
+  rutas/                    Utilidades puras de búsqueda de rutas
+    buscarRutas.ts          buscarRutasPorNombre / numeroLineaDeRuta
+    normalizar.ts           normalizarTexto (acentos, minúsculas, espacios)
+  errors.ts                 Jerarquía UneError
+  http.ts                   Transporte HTTP tolerante (httpsGetRaw) por sockets TLS
+  index.ts                  UneApiClient (Firebase auth + HTTP) + re-exports
+  discover.ts               Script manual (Playwright) — excluido de build y npm
+tests/                      Suite unitaria offline (node:test vía tsx)
+e2e/                        Test end-to-end (ruta10.e2e.test.ts) que toca la red
+_samples/                   Muestras reales (vacío / no versionado)
 ```
 
 Principio: el paquete dueño hace HTTP + parseo + mapeo; el consumidor decide
-cuándo/cómo. `package.json` `exports` sólo expone la raíz; los tipos públicos
-se re-exportan desde `src/index.ts`.
+cuándo/cómo y **cómo presentar** (el render del mapa SVG→PNG ya no vive aquí:
+se movió a `whatsapp-une-bot` como `svgMapa.js`). `package.json` `exports` sólo
+expone la raíz; los tipos públicos se re-exportan desde `src/index.ts`.
 
 ---
 
-## Cliente y errores
+## Cliente y autenticación
 
-**`UneApiClient`** (bosquejo):
+**`UneApiClient`** (`src/index.ts`):
 
-- `constructor(options?: { baseUrl?: string })` — default `https://unesonora.com/`.
-- `fetchTodo(path?)` — método provisional; GET + mapea a `DatosUNE`.
-- `static mapDatos(data)` — mapea payload crudo sin HTTP.
+- `constructor(options?: { firebaseApiKey?, baseUrl?, refreshToken?,
+ciudadDefault?, fetch?, http? })`
+  - Defaults: `baseUrl=https://api.unesonora.com`, `ciudadDefault="1"`
+    (Hermosillo), `firebaseApiKey` público del proyecto UNE (o `UNE_FIREBASE_API_KEY`).
+  - `refreshToken` reutiliza una sesión anónima previa.
+  - `fetch` y `http` son inyectables para testing offline.
+- La API de UNE **requiere token**: el cliente hace el ciclo de auth anónima de
+  Firebase internamente (`signUp` + `refresh`, header `X-Firebase-Token`).
+- El token se refresca con 5 min de margen; un 401/403 limpia el token.
 
-**Errores** (`src/errors.ts`), todos heredan de `UneError`:
+### Métodos públicos
 
-| Clase             | Cuándo                               | Extra             |
-| ----------------- | ------------------------------------ | ----------------- |
-| `UneAuthError`    | HTTP 401/403                         |                   |
-| `UneNetworkError` | red/DNS/CORS                         |                   |
-| `UneHttpError`    | HTTP !ok ≠ 401/403, o cuerpo no-JSON | `.status`         |
-| `UneMappingError` | payload malformado en `mapTodo`      | `cause` = payload |
+| Método                           | Endpoint                      | Retorna                   |
+| -------------------------------- | ----------------------------- | ------------------------- |
+| `listarCiudades()`               | `GET /cities?disabled=false`  | `Ciudad[]`                |
+| `listarRutas(idCiudad?)`         | `GET /routes/city/{id}`       | `Ruta[]`                  |
+| `posiciones(groupId)`            | `GET /locations/{groupId}`    | `Camion[]`                |
+| `paradas(idRuta)`                | `GET /stops?route={id}`       | `Parada[]`                |
+| `puntosReferencia(idCiudad?)`    | `GET /rps?id_city={id}`       | `PuntoReferencia[]`       |
+| `buscarRutasPorNombre(consulta)` | (busca en rutas)              | `Ruta[]`                  |
+| `buscarRutaPorId(idRuta)`        | (busca en rutas)              | `Ruta \| null`            |
+| `consultarRuta(identificador)`   | (ruta + paradas + posiciones) | `InformacionRuta \| null` |
+| `getRefreshToken()`              | —                             | `string \| null`          |
 
 ---
 
-## DTOs (FASE DE PRUEBA)
+## Transporte HTTP (`src/http.ts`)
 
-- **`Camion`**: `id`, `rutaId?`, `ubicacion { lat, lng }`, `timestamp?`.
-- **`Ruta`**: `id`, `nombre`, `geometria?`, `paradas?`.
+El `fetch` global de Node **no puede consumir** los endpoints `/locations/*` de
+UNE: el servidor devuelve un header `X-Debug-Limit` con bytes binarios (un CR
+sin LF) que lanza `Parse Error: Missing expected LF after header value` y aborta
+la respuesta.
 
-Ambos marcan `⚠️ Fase de prueba` en su JSDoc.
+Por eso el cliente usa un transporte **por socket TLS crudo** (`httpsGetRaw`)
+que lee la cabeza HTTP y descarta cada línea de header inválida
+(`cuidarCabecera`). Expone `HttpRequestOptions { url, method?, headers?, body?,
+timeoutMs? }` → `HttpResult { status, statusText, headers, body }`. El tipo
+`UneHttpTransport` es inyectable en el cliente. Firebase auth sí usa `fetch`.
+
+> URL del HAR: [`unesonora.har`](./unesonora.har) / [`unesonora2.har`](./unesonora2.har).
+
+---
+
+## DTOs públicos (CONFIRMADOS sobre el payload real)
+
+- **`Camion`**: `id`, `code`, `ubicacion { lat, lng }`, `velocidad` (número o
+  `"--"`), `rumbo`, `timestamp`, `motorEncendido`, `groupId`, `sentido`,
+  `deshabilitado`, `motivoInactividad`, `paradaActual`, `proximaParada`,
+  `enParada`, `rutaId?`.
+- **`Ruta`**: `id`, `nombre`, `groupId`, `recorrido` (polilínea decodificada a
+  `Coordenada[]`), `colorPrimario`, `colorSecundario`, `accesible`, `habilitado`,
+  `metadata`.
+- **`Ciudad`**: `id`, `nombre`, `color`, `limites { ne, sw }`, `routingHabilitado`,
+  `descripcion`.
+- **`Parada`**: `id`, `code`, `nombre`, `ubicacion`, `rutas: { id, nombre }[]`.
+- **`PuntoReferencia`**: `id`, `nombre`, `ubicacion`, `tipo`.
+
+---
+
+## Errores
+
+**Todos heredan de `UneError`** (`src/errors.ts`). El `cause` conserva su forma
+original. `UneHttpError` expone `.status`.
+
+| Clase              | Cuándo                                  | Extra             |
+| ------------------ | --------------------------------------- | ----------------- |
+| `UneNetworkError`  | `fetch`/HTTP rechazó (red, DNS, CORS)   |                   |
+| `UneAuthError`     | HTTP 401/403 en el API de UNE           | limpia el token   |
+| `UneHttpError`     | HTTP !ok ≠ 401/403, o cuerpo no-JSON    | `.status`         |
+| `UneMappingError`  | payload malformado al mapear            | `cause` = payload |
+| `UneFirebaseError` | fallo en `signUp`/`refresh` de Firebase |                   |
 
 ---
 
@@ -92,20 +153,26 @@ pnpm test          # suite unitaria offline (node:test vía tsx)
 pnpm run lint      # oxlint (correctness + suspicious + typescript)
 pnpm run format    # prettier --write . (config en .prettierrc.json)
 pnpm run format:check   # verifica que todo siga el estilo sin modificar
-npx tsx src/discover.ts   # descubrir endpoints (requiere playwright install)
+npx tsx src/discover.ts   # re-capturar la API (requiere playwright install)
 ```
+
+El e2e (`e2e/ruta10.e2e.test.ts`) toca la red real; no forma parte de `pnpm test`.
+
+---
 
 ## Convenciones
 
 - **ESM**: imports internos con extensión `.js`.
-- **Estilo**: todo el código se formatea con **Prettier** (`.prettierrc.json`) y se
-  lintan con **oxlint** (`.oxlintrc.json`). **Sin punto y coma** (`semi: false`),
+- **Estilo**: todo el código se formatea con **Prettier** (`.prettierrc.json`) y
+  se lintan con **oxlint** (`.oxlintrc.json`). **Sin punto y coma** (`semi: false`),
   comillas simples, ancho de 100. Corre `pnpm run lint` y `pnpm run format:check`
   tras tocar código.
 - **Protocolo de verificación**: antes de dar por hecho un cambio, ejecutar
   `pnpm run build`, `pnpm test`, `pnpm run lint` y `pnpm run format:check`.
-- **No añadas comentarios de especulación**; marca lo no confirmado con
-  `⚠️ Fase de prueba` en el JSDoc.
+- **No añadas comentarios de especulación**; los DTOs ya confirmados no llevan
+  la marca de prueba. Si descubres algo nuevo/incierto, márcalo en el JSDoc.
+- **No se expone `raw_data`** (shape variable del proveedor GPS): queda solo en
+  `api/types.ts`, no en el DTO público.
 - **Nuevos campos/DTOs públicos** deben re-exportarse desde `src/index.ts`.
 - `src/discover.ts` no se publica (en `tsconfig.json` exclude y `.npmignore`).
 
@@ -113,10 +180,11 @@ npx tsx src/discover.ts   # descubrir endpoints (requiere playwright install)
 
 ## Pendientes (resumen; detalle en `PLAN.md`)
 
-1. Descubrir endpoints reales (`discover.ts` + revisar `_samples/`).
-2. Fijar forma real del payload (types, DTOs, mappers, mock, tests, cliente).
-3. Conectar al bot `whatsapp-une-bot` (recrear mapa + enviar imagen).
-4. Build y publicación (instalar devDeps, `LICENSE`, `.env.example`).
+1. Cobertura de test para `src/http.ts` (sancar header corrupto `X-Debug-Limit`).
+2. Build y publicación (ordenar `LICENSE`, `.env.example`, versión estable).
+3. Conectar al bot `whatsapp-une-bot` (branch `new_map`): el render SVG→PNG se
+   movió al bot (`svgMapa.js`); este paquete queda solo con datos y se enlaza
+   con `file:../` de momento (a versión publicada después).
 
 ## Nota de infraestructura
 

@@ -34,6 +34,14 @@
   ],
   "author": "Mark436",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mark436/une-api-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Mark436/une-api-client/issues"
+  },
+  "homepage": "https://github.com/Mark436/une-api-client",
   "type": "module",
   "engines": {
     "node": ">=24.16.0"

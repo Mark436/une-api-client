@@ -181,7 +181,10 @@ El e2e (`e2e/ruta10.e2e.test.ts`) toca la red real; no forma parte de `pnpm test
 ## Pendientes (resumen; detalle en `PLAN.md`)
 
 1. Cobertura de test para `src/http.ts` (sancar header corrupto `X-Debug-Limit`).
-2. Build y publicación (ordenar `LICENSE`, `.env.example`, versión estable).
+2. Publicar: `package.json` ya tiene `repository`/`bugs`/`homepage` y el
+   dry-run de `pnpm publish --no-git-checks` sube un tarball de 20.6 kB (solo
+   `dist/` + README + LICENSE). Falta `npm/npm login` y decidir la versión
+   (`v0.1.0` está libre en el registry).
 3. Conectar al bot `whatsapp-une-bot` (branch `new_map`): el render SVG→PNG se
    movió al bot (`svgMapa.js`); este paquete queda solo con datos y se enlaza
    con `file:../` de momento (a versión publicada después).

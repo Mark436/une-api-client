@@ -38,6 +38,8 @@ export interface ApiCamion {
   /** Sentido de la ruta (1 o 2). */
   route_direction: number
   handicap_enabled: number
+  /** Configuraciones de la unidad (p. ej. "Discapacidad", "Guardia"). Solo viene en algunas. */
+  configurations?: { id_icon?: string; name?: string; image_icon?: string; primary_color?: string }[]
   supplier: string
   ignore: boolean
   /** Datos crudos del proveedor de GPS (shape variable según el supplier). */

@@ -21,6 +21,11 @@ export function mapCamion(data: ApiCamion): Camion {
     groupId: String(data.group_id),
     sentido: numero(data.route_direction),
     deshabilitado: Boolean(data.disabled),
+    accesible:
+      Boolean(numero(data.handicap_enabled)) ||
+      (data.configurations ?? []).some(
+        (c) => c.image_icon === 'wheelchair.png' || /discapacidad/i.test(c.name ?? '')
+      ),
     motivoInactividad: data.inactive_reason,
     paradaActual: data.stop ?? null,
     proximaParada: data.nextStop ?? null,

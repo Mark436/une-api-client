@@ -28,6 +28,8 @@ export interface Camion {
   sentido: number
   /** Indica si la unidad está inhabilitada. */
   deshabilitado: boolean
+  /** Unidad accesible (silla de ruedas): configuración "Discapacidad" o `handicap_enabled`. */
+  accesible: boolean
   /** Motivo de inactividad, o null si está activa. */
   motivoInactividad: string | null
   /** Código de la parada actual (si la hay). */

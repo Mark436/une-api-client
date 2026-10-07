@@ -169,12 +169,12 @@ export class UneApiClient {
    * metodo publico lo ejecuta automaticamente.
    */
   async #ensureAuth(): Promise<void> {
-    if (this.#token && Date.now() < this.#token.expiresAtMs * 1000) return
+    if (this.#token && Date.now() < this.#token.expiresAtMs) return
 
     // Encadenar multiples llamadas concurrentes al mismo refresh.
     if (this.#authPromise) {
       await this.#authPromise
-      if (this.#token && Date.now() < this.#token.expiresAtMs * 1000) return
+      if (this.#token && Date.now() < this.#token.expiresAtMs) return
     }
 
     this.#authPromise = this.#doAuth()
